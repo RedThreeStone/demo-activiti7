@@ -1,8 +1,24 @@
 package it.lei.demoactiviti7;
 
+import org.activiti.bpmn.model.BpmnModel;
+import org.activiti.bpmn.model.FlowElement;
+import org.activiti.bpmn.model.UserTask;
 import org.activiti.engine.*;
+import org.activiti.engine.history.HistoricActivityInstance;
+import org.activiti.engine.repository.Deployment;
+import org.activiti.engine.repository.ProcessDefinition;
+import org.activiti.engine.runtime.ProcessInstance;
+import org.apache.commons.io.FileUtils;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * @author uu
@@ -54,7 +70,14 @@ public class ApiTest extends DemoActiviti7ApplicationTests {
     @Autowired
     private ManagementService managementService;
 
-
+    @Before
+    public void pre(){
+        System.out.println("开始测试");
+    }
+    @After
+    public void post(){
+        System.out.println("测试结束");
+    }
 
     /**
      * 创建流程
@@ -68,4 +91,100 @@ public class ApiTest extends DemoActiviti7ApplicationTests {
                 .name("yfz审核流程部署")
                 .deploy();
     }
+
+    /**
+     * 查询流程定义相关信息
+     */
+    @Test
+    public void queryProcessInfo(){
+        List<ProcessDefinition> processDefinitions = repositoryService.createProcessDefinitionQuery()
+                .processDefinitionKey("yfzProcess")
+                .orderByProcessDefinitionVersion()
+                .desc()
+                .list();
+        for(ProcessDefinition processDefinition:processDefinitions){
+            int version = processDefinition.getVersion();
+            System.out.println("version:"+version);
+            String description = processDefinition.getDescription();
+            System.out.println("description:"+description);
+            String resourceName = processDefinition.getResourceName();
+            System.out.println("resourceName:"+resourceName);
+        }
+    }
+
+    /**
+     * 获取流程的所有任务节点信息
+     */
+    @Test
+    public void findAllTaskNodeName(){
+        List<ProcessDefinition> processDefinitions = repositoryService.createProcessDefinitionQuery()
+                .processDefinitionKey("yfzProcess")
+                .orderByProcessDefinitionVersion()
+                .desc()
+                .list();
+        for(ProcessDefinition processDefinition:processDefinitions) {
+            String id = processDefinition.getId();
+            BpmnModel bpmnModel = repositoryService.getBpmnModel(id);
+            Collection<FlowElement> flowElements = bpmnModel.getMainProcess().getFlowElements();
+            flowElements.stream().filter(item->item instanceof UserTask).forEach(item->{
+                        String name = item.getName();
+                        System.out.println(name);
+                    });
+        }
+    }
+
+    /**
+     * 删除流程信息
+     */
+    @Test
+    public void deleteProcess(){
+        List<ProcessDefinition> processDefinitions = repositoryService.createProcessDefinitionQuery()
+                .processDefinitionKey("yfzProcess")
+                .orderByProcessDefinitionVersion()
+                .desc()
+                .list();
+        for(ProcessDefinition processDefinition:processDefinitions) {
+            String deploymentId = processDefinition.getDeploymentId();
+            repositoryService.deleteDeployment(deploymentId,false);
+        }
+    }
+
+    /**
+     * 获取部署流程时的资源文件
+     */
+    @Test
+    public void getAllResource() throws IOException {
+        //获取流程部署信息
+        Deployment deployment = repositoryService.createDeploymentQuery()
+                .processDefinitionKey("yfzProcess").singleResult();
+        //获取流程定义信息
+        ProcessDefinition processDefinition = repositoryService.createProcessDefinitionQuery().processDefinitionKey("yfzProcess").singleResult();
+        //获取文件流
+        InputStream bpmn = repositoryService.getResourceAsStream(deployment.getId(),processDefinition.getResourceName());
+        InputStream png = repositoryService.getResourceAsStream(deployment.getId(),processDefinition.getDiagramResourceName());
+        //拷贝文件
+        FileUtils.copyInputStreamToFile(bpmn,new File("C:\\Users\\huangl\\Desktop\\新建文件夹\\bpmn.bpmn"));
+        FileUtils.copyInputStreamToFile(png,new File("C:\\Users\\huangl\\Desktop\\新建文件夹\\png.png"));
+        bpmn.close();
+        png.close();
+    }
+
+    /**
+     * 获取流程的历史记录
+     * 问题 带activity 以及带Native 和不带的有什么区别
+     */
+    @Test
+    public void findTaskHistory(){
+        ProcessInstance yfzProcess = runtimeService.createProcessInstanceQuery()
+                .processDefinitionKey("yfzProcess").singleResult();
+        List<HistoricActivityInstance> list = historyService.createHistoricActivityInstanceQuery()
+                .processInstanceId(yfzProcess.getProcessInstanceId())
+                .orderByHistoricActivityInstanceStartTime().asc().list();
+        list.forEach(item ->{
+            System.out.println(item.getActivityName());
+            System.out.println(item.getTime());
+            System.out.println("----------------------------------------------");
+        });
+    }
+
 }
