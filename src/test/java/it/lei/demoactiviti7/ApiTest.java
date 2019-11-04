@@ -8,9 +8,10 @@ import org.activiti.engine.history.HistoricActivityInstance;
 import org.activiti.engine.repository.Deployment;
 import org.activiti.engine.repository.ProcessDefinition;
 import org.activiti.engine.runtime.ProcessInstance;
+import org.activiti.engine.task.Task;
 import org.apache.commons.io.FileUtils;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -27,10 +28,21 @@ import java.util.List;
  */
 public class ApiTest extends DemoActiviti7ApplicationTests {
 
+    public static final String YFZKEY="yfzProcess";
     @Autowired
     private ProcessEngineConfiguration processEngineConfiguration;
     @Autowired
     private ProcessEngine processEngine;
+
+    @BeforeEach
+    public  void before(){
+        System.out.println("测试开始了");
+    }
+
+    @AfterEach
+    public  void after(){
+        System.out.println("测试结束了");
+    }
 
     /**
      * 是activiti的资源管理类，提供了管理和控制流程发布包和流程定义的操作。使用工作流建模工具设计的业务流程图需要使用此service将流程定义文件的内容部署到计算机。
@@ -70,35 +82,77 @@ public class ApiTest extends DemoActiviti7ApplicationTests {
     @Autowired
     private ManagementService managementService;
 
-    @Before
-    public void pre(){
-        System.out.println("开始测试");
-    }
-    @After
-    public void post(){
-        System.out.println("测试结束");
-    }
+
 
     /**
      * 创建流程
+     * 流程创建以后会在ACT_GE_BYTEARRAY 通用的流程定义和流程资源表 存入bpmn和png的信息
+     * 在ACT_RE_DEPLOYMENT存入部署信息
+     * 在ACT_GE_PROPERTY存入系统信息
      */
     @Test
     public void createProcessTest(){
-        repositoryService.createDeployment()
+        Deployment deployment = repositoryService.createDeployment()
                 //一般部署一个流程需要指定bpmn和png两种类型的文件
                 .addClasspathResource("yfzProcess.bpmn")
                 .addClasspathResource("yfzProcess.png")
                 .name("yfz审核流程部署")
                 .deploy();
+        String id = deployment.getId();
+        System.out.println("id:"+id);
+        String key = deployment.getKey();
+        System.out.println("key:"+key);
+        String name = deployment.getName();
+        System.out.println("name:"+name);
     }
 
+    /**
+     * 启动流程实例
+     */
+    @Test
+    public void getInstance(){
+        //key值为bpmn文件的id
+        ProcessInstance processInstance = runtimeService.startProcessInstanceByKey(YFZKEY,"lpzId");
+        System.out.println("businessKey:"+processInstance.getBusinessKey());
+        System.out.println("deploymentid:"+processInstance.getDeploymentId());
+        System.out.println("实例id:"+processInstance.getId());
+        System.out.println("流程定义id:"+processInstance.getProcessDefinitionId());
+        System.out.println("当前获得活动id:"+processInstance.getActivityId());
+    }
+    /**
+     * 查询当前用户的任务列表
+     */
+    @Test
+    public void queryTask(){
+        List<Task> tasks = taskService.createTaskQuery()
+                .processDefinitionKey(YFZKEY)
+                .taskAssignee("张三").list();
+        for (Task task : tasks){
+            System.out.println(task.getProcessInstanceId());
+            System.out.println(task.getId());
+            System.out.println(task.getAssignee());
+            System.out.println(task.getName());
+        }
+    }
+
+    @Test
+    public void finishTask(){
+        List<Task> tasks = taskService.createTaskQuery()
+                .taskAssignee("张三")
+//                .processDefinitionKey(YFZKEY)//流程key
+//                .processInstanceId("")//流程实例id
+                .taskId("41a7426c-fe2b-11e9-9695-0c9d921ac95e")//环节任务id
+                //.taskName("")//环节名
+                .list();
+        taskService.complete(tasks.get(0).getId());
+    }
     /**
      * 查询流程定义相关信息
      */
     @Test
     public void queryProcessInfo(){
         List<ProcessDefinition> processDefinitions = repositoryService.createProcessDefinitionQuery()
-                .processDefinitionKey("yfzProcess")
+                .processDefinitionKey(YFZKEY)
                 .orderByProcessDefinitionVersion()
                 .desc()
                 .list();
@@ -118,7 +172,7 @@ public class ApiTest extends DemoActiviti7ApplicationTests {
     @Test
     public void findAllTaskNodeName(){
         List<ProcessDefinition> processDefinitions = repositoryService.createProcessDefinitionQuery()
-                .processDefinitionKey("yfzProcess")
+                .processDefinitionKey(YFZKEY)
                 .orderByProcessDefinitionVersion()
                 .desc()
                 .list();
@@ -127,9 +181,9 @@ public class ApiTest extends DemoActiviti7ApplicationTests {
             BpmnModel bpmnModel = repositoryService.getBpmnModel(id);
             Collection<FlowElement> flowElements = bpmnModel.getMainProcess().getFlowElements();
             flowElements.stream().filter(item->item instanceof UserTask).forEach(item->{
-                        String name = item.getName();
-                        System.out.println(name);
-                    });
+                String name = item.getName();
+                System.out.println(name);
+            });
         }
     }
 
@@ -139,7 +193,7 @@ public class ApiTest extends DemoActiviti7ApplicationTests {
     @Test
     public void deleteProcess(){
         List<ProcessDefinition> processDefinitions = repositoryService.createProcessDefinitionQuery()
-                .processDefinitionKey("yfzProcess")
+                .processDefinitionKey(YFZKEY)
                 .orderByProcessDefinitionVersion()
                 .desc()
                 .list();
@@ -156,9 +210,9 @@ public class ApiTest extends DemoActiviti7ApplicationTests {
     public void getAllResource() throws IOException {
         //获取流程部署信息
         Deployment deployment = repositoryService.createDeploymentQuery()
-                .processDefinitionKey("yfzProcess").singleResult();
+                .processDefinitionKey(YFZKEY).singleResult();
         //获取流程定义信息
-        ProcessDefinition processDefinition = repositoryService.createProcessDefinitionQuery().processDefinitionKey("yfzProcess").singleResult();
+        ProcessDefinition processDefinition = repositoryService.createProcessDefinitionQuery().processDefinitionKey(YFZKEY).singleResult();
         //获取文件流
         InputStream bpmn = repositoryService.getResourceAsStream(deployment.getId(),processDefinition.getResourceName());
         InputStream png = repositoryService.getResourceAsStream(deployment.getId(),processDefinition.getDiagramResourceName());
@@ -176,7 +230,7 @@ public class ApiTest extends DemoActiviti7ApplicationTests {
     @Test
     public void findTaskHistory(){
         ProcessInstance yfzProcess = runtimeService.createProcessInstanceQuery()
-                .processDefinitionKey("yfzProcess").singleResult();
+                .processDefinitionKey(YFZKEY).singleResult();
         List<HistoricActivityInstance> list = historyService.createHistoricActivityInstanceQuery()
                 .processInstanceId(yfzProcess.getProcessInstanceId())
                 .orderByHistoricActivityInstanceStartTime().asc().list();
@@ -187,4 +241,34 @@ public class ApiTest extends DemoActiviti7ApplicationTests {
         });
     }
 
+    /**
+     * 暂停(激活)该流程定义下的所有流程
+     */
+    @Test
+    public void suspendedProcessDefinition(){
+        ProcessDefinition processDefinition = repositoryService.createProcessDefinitionQuery()
+                .processDefinitionKey(YFZKEY).singleResult();
+        //如果是暂停就激活,如果是激活状态就暂停
+        if(processDefinition.isSuspended()){
+            repositoryService.activateProcessDefinitionById(processDefinition.getId());
+        }else {
+            repositoryService.suspendProcessDefinitionById(processDefinition.getId());
+        }
+    }
+
+    /**
+     * 暂停单条流程实例
+     */
+    @Test
+    public void suspendedSingleProcessInstance(){
+        ProcessInstance processInstance = runtimeService.createProcessInstanceQuery().processDefinitionKey(YFZKEY).singleResult();
+        if(processInstance.isSuspended()){
+            //唤醒流程实例
+            runtimeService.activateProcessInstanceById(processInstance.getProcessInstanceId());
+        }else {
+            //暂停流程实例
+            runtimeService.suspendProcessInstanceById(processInstance.getProcessInstanceId());
+        }
+
+    }
 }
