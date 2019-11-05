@@ -14,12 +14,16 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.annotation.Rollback;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author uu
@@ -89,13 +93,15 @@ public class ApiTest extends DemoActiviti7ApplicationTests {
      * 流程创建以后会在ACT_GE_BYTEARRAY 通用的流程定义和流程资源表 存入bpmn和png的信息
      * 在ACT_RE_DEPLOYMENT存入部署信息
      * 在ACT_GE_PROPERTY存入系统信息
+     * 在实际测试过程中发现eul表达式赋值貌似只能赋值一次 第二次不成功
+     * @// TODO: 2019/11/5 以对象的形式来设置流程变量
      */
     @Test
     public void createProcessTest(){
         Deployment deployment = repositoryService.createDeployment()
                 //一般部署一个流程需要指定bpmn和png两种类型的文件
-                .addClasspathResource("yfzProcess.bpmn")
-                .addClasspathResource("yfzProcess.png")
+                .addClasspathResource("YfzProcess.bpmn")
+          //      .addClasspathResource("YfzProcess.png")
                 .name("yfz审核流程部署")
                 .deploy();
         String id = deployment.getId();
@@ -108,11 +114,22 @@ public class ApiTest extends DemoActiviti7ApplicationTests {
 
     /**
      * 启动流程实例
+     * 使用uel表达式动态分配任务所属人，测试taskListener的功能
      */
     @Test
-    public void getInstance(){
-        //key值为bpmn文件的id
-        ProcessInstance processInstance = runtimeService.startProcessInstanceByKey(YFZKEY,"lpzId");
+    public void getProcessInstance(){
+        Map<String, Object> hashMap = new HashMap<>();
+        YfzProcessParam yfzProcessParam = new YfzProcessParam();
+        yfzProcessParam.setJl("李四");
+        yfzProcessParam.setNum(3);
+        yfzProcessParam.setCssh("haha");
+//        yfzProcessParam.setGljsh("田七");
+//        yfzProcessParam.setCssh("中久");
+        hashMap.put("yfzProcessParam",yfzProcessParam);
+//        hashMap.put("gljjbr","李四2");
+//        hashMap.put("gljld","王五");
+        //key值为bpmn文件的id  设置流程key值 业务表id  以及流程变量指定办理人
+        ProcessInstance processInstance = runtimeService.startProcessInstanceByKey(YFZKEY,"lpzId",hashMap);
         System.out.println("businessKey:"+processInstance.getBusinessKey());
         System.out.println("deploymentid:"+processInstance.getDeploymentId());
         System.out.println("实例id:"+processInstance.getId());
@@ -135,16 +152,47 @@ public class ApiTest extends DemoActiviti7ApplicationTests {
         }
     }
 
+    /**
+     * 办结任务
+     * 办结前加入该任务环节该人是否有任务能办结
+     */
     @Test
+    @Transactional(rollbackFor = Exception.class)
+    @Rollback(value = false)
     public void finishTask(){
         List<Task> tasks = taskService.createTaskQuery()
-                .taskAssignee("张三")
+                .taskAssignee("李四")
+
 //                .processDefinitionKey(YFZKEY)//流程key
 //                .processInstanceId("")//流程实例id
-                .taskId("41a7426c-fe2b-11e9-9695-0c9d921ac95e")//环节任务id
+                //  .taskId("41a7426c-fe2b-11e9-9695-0c9d921ac95e")//环节任务id
                 //.taskName("")//环节名
                 .list();
-        taskService.complete(tasks.get(0).getId());
+        if(tasks==null){
+            throw  new RuntimeException("未获取到该经办人下的任务");
+        }
+        Map<String, Object> hashMap = new HashMap<>();
+        //这边如果要动态的设定下一个经办人，则之前不能设定过
+        YfzProcessParam yfzProcessParam = new YfzProcessParam();
+        yfzProcessParam.setGljqr("888");
+        hashMap.put("yfzProcessParam",yfzProcessParam);
+//        通过execution设置流程变量
+//        Execution execution = runtimeService.createExecutionQuery().processDefinitionKey(YFZKEY).singleResult();
+//        runtimeService.setVariables(execution.getId(),hashMap);
+        //通过任务id来设置流程变量
+        //taskService.setVariables(tasks.get(0).getId(),hashMap);
+        taskService.complete(tasks.get(0).getId(),hashMap);
+        queryParams();
+    }
+    @Test
+    public void queryParams(){
+
+        List<Task> list = taskService.createTaskQuery()
+                .processDefinitionKey(YFZKEY).list();
+        list.forEach(item->{
+            Map<String, Object> variables = taskService.getVariables(item.getId());
+            System.out.println(variables);
+        });
     }
     /**
      * 查询流程定义相关信息
