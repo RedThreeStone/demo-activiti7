@@ -11,6 +11,8 @@ import java.io.Serializable;
  */
 @Data
 public class YfzProcessParam implements Serializable {
+
+    private static final long serialVersionUID = 3359315506537761627L;
     private String jl;
     private String gljsh;
     private String gljqr;

@@ -1,5 +1,8 @@
 package it.lei.demoactiviti7;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.activiti.bpmn.model.BpmnModel;
 import org.activiti.bpmn.model.FlowElement;
 import org.activiti.bpmn.model.UserTask;
@@ -93,7 +96,7 @@ public class ApiTest extends DemoActiviti7ApplicationTests {
      * 流程创建以后会在ACT_GE_BYTEARRAY 通用的流程定义和流程资源表 存入bpmn和png的信息
      * 在ACT_RE_DEPLOYMENT存入部署信息
      * 在ACT_GE_PROPERTY存入系统信息
-     * 在实际测试过程中发现eul表达式赋值貌似只能赋值一次 第二次不成功
+     * 在实际测试过程中发现eul表达式赋值貌似只能赋值一次 第二次不成功 还是用基本类型去设定流程变量吧 对象的有点玩不转
      * @// TODO: 2019/11/5 以对象的形式来设置流程变量
      */
     @Test
@@ -121,13 +124,8 @@ public class ApiTest extends DemoActiviti7ApplicationTests {
         Map<String, Object> hashMap = new HashMap<>();
         YfzProcessParam yfzProcessParam = new YfzProcessParam();
         yfzProcessParam.setJl("李四");
-        yfzProcessParam.setNum(3);
-        yfzProcessParam.setCssh("haha");
-//        yfzProcessParam.setGljsh("田七");
-//        yfzProcessParam.setCssh("中久");
+        yfzProcessParam.setGljsh("haha");
         hashMap.put("yfzProcessParam",yfzProcessParam);
-//        hashMap.put("gljjbr","李四2");
-//        hashMap.put("gljld","王五");
         //key值为bpmn文件的id  设置流程key值 业务表id  以及流程变量指定办理人
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey(YFZKEY,"lpzId",hashMap);
         System.out.println("businessKey:"+processInstance.getBusinessKey());
@@ -159,7 +157,7 @@ public class ApiTest extends DemoActiviti7ApplicationTests {
     @Test
     @Transactional(rollbackFor = Exception.class)
     @Rollback(value = false)
-    public void finishTask(){
+    public void finishTask() throws JsonProcessingException {
         List<Task> tasks = taskService.createTaskQuery()
                 .taskAssignee("李四")
 
@@ -171,18 +169,34 @@ public class ApiTest extends DemoActiviti7ApplicationTests {
         if(tasks==null){
             throw  new RuntimeException("未获取到该经办人下的任务");
         }
-        Map<String, Object> hashMap = new HashMap<>();
         //这边如果要动态的设定下一个经办人，则之前不能设定过
-        YfzProcessParam yfzProcessParam = new YfzProcessParam();
-        yfzProcessParam.setGljqr("888");
-        hashMap.put("yfzProcessParam",yfzProcessParam);
 //        通过execution设置流程变量
 //        Execution execution = runtimeService.createExecutionQuery().processDefinitionKey(YFZKEY).singleResult();
 //        runtimeService.setVariables(execution.getId(),hashMap);
         //通过任务id来设置流程变量
         //taskService.setVariables(tasks.get(0).getId(),hashMap);
-        taskService.complete(tasks.get(0).getId(),hashMap);
+        //先取后写 顺便打印日志
+        JsonNode jsonNode = (JsonNode) taskService.getVariable(tasks.get(0).getId(), "yfzProcessParam");
+        ObjectMapper objectMapper = new ObjectMapper();
+        YfzProcessParam yfzProcessParam = objectMapper.readValue(jsonNode.toString(), YfzProcessParam.class);
+        System.out.println(yfzProcessParam);
+        yfzProcessParam.setGljsh("又改了一下");
+        taskService.setVariable(tasks.get(0).getId(),"yfzProcessParam",yfzProcessParam);
+//        taskService.complete(tasks.get(0).getId(),map);  没有测试出影响流程的详细中的效果
+        taskService.complete(tasks.get(0).getId());
+
+    }
+
+    @Test
+    @Transactional(rollbackFor = Exception.class)
+    @Rollback(value = false)
+    public void setVar(){
+        Map<String, Object> map = new HashMap<>();
+        YfzProcessParam yfzProcessParam = new YfzProcessParam();
+        yfzProcessParam.setJl("dwas");
+        map.put("yfzProcessParam",yfzProcessParam);
         queryParams();
+       taskService.setVariable("57b97b61-003d-11ea-aab6-40a5ef4a0f30","yfzProcessParam",yfzProcessParam);
     }
     @Test
     public void queryParams(){
@@ -290,7 +304,7 @@ public class ApiTest extends DemoActiviti7ApplicationTests {
     }
 
     /**
-     * 暂停(激活)该流程定义下的所有流程
+     * 挂起(激活)该流程定义下的所有流程
      */
     @Test
     public void suspendedProcessDefinition(){

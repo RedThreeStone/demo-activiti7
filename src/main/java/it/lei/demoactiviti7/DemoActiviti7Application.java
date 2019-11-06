@@ -1,6 +1,5 @@
 package it.lei.demoactiviti7;
 
-import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -11,7 +10,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * activiti-app 教程https://www.jianshu.com/p/ad35a325443b
  */
 @SpringBootApplication
-@MapperScan("it.lei.demoactiviti7")
 public class DemoActiviti7Application {
 
     public static void main(String[] args) {

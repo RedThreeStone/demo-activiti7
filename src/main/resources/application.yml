@@ -55,22 +55,31 @@ spring:
         # 登录密码
         login-password: 123456
 
-mybatis:
-  mapper-locations: classpath:mapping/**/*Mapper.xml
-  type-aliases-package: it.lei.demoactiviti7.entity
-  configuration:
-    map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
-    #当使用一个对象的某个属性的时候 加载其他所有的按需加载的属性(这不扯鬼么)
-    aggressive-lazy-loading: false
-    lazy-loading-enabled: true
-    #开启二级缓存,除了在这里配置还需要在*map.xml,还需要在具体的查询statement开启二级缓存
-    cache-enabled: false
+#mybatis:
+#  mapper-locations: classpath:mapping/**/*Mapper.xml
+#  type-aliases-package: it.lei.demoactiviti7.entity
+#  configuration:
+#    map-underscore-to-camel-case: true
+#  #  log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+#    #当使用一个对象的某个属性的时候 加载其他所有的按需加载的属性(这不扯鬼么)
+#    aggressive-lazy-loading: false
+#    lazy-loading-enabled: true
+#    #开启二级缓存,除了在这里配置还需要在*map.xml,还需要在具体的查询statement开启二级缓存
+#    cache-enabled: false
 logging:
   level:
-    com.ascendant: debug
+    root: info
+    org:
+      activiti:
+        engine:
+          impl:
+            persistence:
+              entity: trace
+  #  level:
+#    com.ascendant: debug
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %clr(-%5p)  %clr(${PID:- }){magenta} --- %clr([%15.15t]){faint} %highlight(%-80.80logger{300}){cyan} %clr(:) %m %n%wEx"
+
 
 
 
