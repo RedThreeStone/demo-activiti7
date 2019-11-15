@@ -88,6 +88,39 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <skipTests>true</skipTests>
+                </configuration>
+            </plugin>
+
+<!--            docker 插件 运行maven->plugins->docker里的命令可操作docker 并推送到阿里云仓库,值得注意的是,需要使用maven打包在target下先生成
+                打包好的部署文件才行-->
+            <plugin>
+                <groupId>com.spotify</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <version>1.0.0</version>
+                <configuration>
+                    <image>registry.cn-hangzhou.aliyuncs.com/it-lei/${project.artifactId}:${project.version}</image>
+                    <newName>registry.cn-hangzhou.aliyuncs.com/it-lei/${project.artifactId}:${project.version}</newName>
+                    <imageName>registry.cn-hangzhou.aliyuncs.com/it-lei/${project.artifactId}:${project.version}</imageName>
+                    <baseImage>jdk1.8</baseImage>
+                    <entryPoint>["java", "-jar","/${project.build.finalName}.jar"]</entryPoint>
+                    <forceTags>true</forceTags>
+                    <resources>
+                        <resource>
+                            <targetPath>/</targetPath>
+                            <directory>${project.build.directory}</directory>
+                            <include>${project.build.finalName}.jar</include>
+                        </resource>
+                    </resources>
+                    <dockerHost>http://129.204.172.72:2375</dockerHost>
+                    <serverId>docker-aliyun</serverId>
+                    <registryUrl>registry.cn-hangzhou.aliyuncs.com</registryUrl>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 
